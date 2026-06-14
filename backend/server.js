@@ -14,12 +14,6 @@ const pool = new Pool({
     port: process.env.DB_PORT || 5432,
 });
 
-pool.query(`
-    CREATE TABLE IF NOT EXISTS tasks (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL
-    )
-`).catch(err => console.error('Error creating table', err));
 
 
 // הוספת משימה
@@ -46,17 +40,41 @@ app.get('/api/tasks', async (req, res) => {
 // --- Health Check for Kubernetes Probes ---
 app.get('/health', async (req, res) => {
     try {
-        // בדיקה שה-DB באמת זמין ומגיב
         await pool.query('SELECT 1');
         res.status(200).json({ status: 'OK', database: 'Connected' });
     } catch (err) {
-        // אם ה-DB למטה, ה-Pod ידווח שהוא לא מוכן (Readiness probe fail)
         console.error('Health check failed:', err);
         res.status(503).json({ status: 'Error', database: 'Disconnected' });
     }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Backend server running on port ${PORT}`);
+async function initDB() {
+    let retries = 5;
+    while (retries > 0) {
+        try {
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL
+                )
+            `);
+            console.log("Database initialized successfully!");
+            return; 
+        } catch (err) {
+            console.error(`Database not ready yet. Retries left: ${retries - 1}. Error:`, err.message);
+            retries -= 1;
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+    
+    console.error("Failed to initialize database after multiple attempts. Exiting...");
+    process.exit(1); 
+}
+
+initDB().then(() => {
+    const PORT = process.env.PORT || 3001;
+    app.listen(PORT, () => {
+        console.log(`Backend server running on port ${PORT}`);
+    });
 });
+
