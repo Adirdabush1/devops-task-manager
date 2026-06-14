@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: task_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_DB: tasksdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build: 
+      context: ./backend
+    container_name: task_backend
+    environment:
+      DB_HOST: postgres-db
+      DB_USER: postgres
+      DB_PASSWORD: supersecretpassword
+      DB_NAME: tasksdb
+      DB_PORT: 5432
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres-db
+    restart: unless-stopped
+
+  frontend:
+    build: 
+      context: ./frontend
+    container_name: task_frontend
+    environment:
+      BACKEND_URL: http://localhost:3001
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# הגדרת Volume לשמירת נתוני ה-DB גם כשהקונטיינר יורד
+volumes:
+  pg_data:

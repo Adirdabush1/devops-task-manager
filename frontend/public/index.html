@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>מערכת ניהול משימות</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; text-align: center; }
+        input, button { padding: 10px; font-size: 16px; margin: 5px; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #eee; margin: 5px 0; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>ניהול משימות</h1>
+    
+    <div>
+        <input type="text" id="taskInput" placeholder="משימה חדשה...">
+        <button onclick="addTask()">הוסף משימה</button>
+    </div>
+
+    <ul id="taskList"></ul>
+
+    <script>
+        let backendUrl = '';
+
+        // פונקציה ראשונית למשיכת כתובת השרת משרת ה-Frontend שלנו
+        async function init() {
+            try {
+                const configRes = await fetch('/config');
+                const config = await configRes.json();
+                backendUrl = config.backendUrl;
+                loadTasks();
+            } catch (error) {
+                console.error('Failed to load config:', error);
+                document.getElementById('taskList').innerHTML = '<li>שגיאה בטעינת הגדרות שרת</li>';
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${backendUrl}/api/tasks`);
+                const tasks = await response.json();
+                const list = document.getElementById('taskList');
+                list.innerHTML = '';
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.textContent = task.title;
+                    list.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+            }
+        }
+
+        async function addTask() {
+            const input = document.getElementById('taskInput');
+            const title = input.value;
+            if (!title) return;
+
+            try {
+                await fetch(`${backendUrl}/api/tasks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title })
+                });
+                input.value = '';
+                loadTasks();
+            } catch (error) {
+                console.error('Error adding task:', error);
+            }
+        }
+
+        // הפעלת האפליקציה בעת טעינת הדף
+        init();
+    </script>
+</body>
+</html>
