@@ -4,9 +4,10 @@ FROM jenkins/jenkins:lts-jdk17
 
 USER root
 
-# docker CLI (client only) + helpers
+# docker CLI client (docker-cli has the `docker` binary; docker.io alone ships only the daemon
+# on Debian trixie) + helpers
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl gnupg lsb-release unzip docker.io \
+        ca-certificates curl gnupg lsb-release unzip docker-cli \
     && rm -rf /var/lib/apt/lists/*
 
 # AWS CLI v2

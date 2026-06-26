@@ -12,7 +12,7 @@ kind: ClusterConfig
 metadata:
   name: task-manager
   region: us-east-1
-  version: "1.31"
+  version: "1.34"
 
 # Control plane requires subnets in >=2 AZs; nodes still live in a single AZ (below).
 availabilityZones: ["us-east-1a", "us-east-1b"]
