@@ -1,0 +1,91 @@
+# Postgres as a StatefulSet so the task data survives pod restarts/reschedules.
+# The volumeClaimTemplate provisions a persistent volume (hostPath on minikube,
+# EBS gp2/gp3 on EKS via the EBS CSI driver). Deleting the pod keeps the PVC/data.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres            # backend connects to DB_HOST=postgres
+  namespace: task-manager
+  labels:
+    app: postgres
+spec:
+  clusterIP: None           # headless service for the StatefulSet
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: task-manager
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: task-manager-config
+                  key: DB_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: task-manager-config
+                  key: DB_NAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: task-manager-secret
+                  key: DB_PASSWORD
+            # Keep data in a subdirectory so cloud volumes' lost+found doesn't break initdb.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "tasksdb"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres", "-d", "tasksdb"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: pg-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # No storageClassName -> uses the cluster default
+        # (minikube: 'standard'; EKS: default gp2/gp3 via EBS CSI driver).
+        resources:
+          requests:
+            storage: 2Gi

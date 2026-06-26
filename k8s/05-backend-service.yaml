@@ -1,0 +1,17 @@
+# Internal-only ClusterIP. The backend is NOT exposed directly; the browser reaches it
+# through the /api path on the single frontend Ingress (see 08-ingress.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: task-manager
+  labels:
+    app: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001

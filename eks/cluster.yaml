@@ -1,0 +1,42 @@
+# Cost-minimized eksctl cluster config (see README cost notes).
+#  - 2x t3.small SPOT nodes (cheap, enough for ~6 small pods)
+#  - nodes pinned to ONE AZ -> no cross-AZ data-transfer charges
+#  - NAT gateway DISABLED + public nodes -> avoids the ~$32/mo NAT cost
+#  - EBS CSI driver addon (with IRSA) so the postgres PVC can bind dynamically
+#
+# Create:  eksctl create cluster -f eks/cluster.yaml
+# Delete:  eksctl delete cluster -f eks/cluster.yaml   (do this as soon as screenshots are done)
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: task-manager
+  region: us-east-1
+  version: "1.31"
+
+# Control plane requires subnets in >=2 AZs; nodes still live in a single AZ (below).
+availabilityZones: ["us-east-1a", "us-east-1b"]
+
+iam:
+  withOIDC: true            # required for the EBS CSI driver IRSA
+
+vpc:
+  nat:
+    gateway: Disable        # no NAT gateway -> big cost saver
+
+managedNodeGroups:
+  - name: ng-spot
+    instanceType: t3.small
+    spot: true
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 2
+    volumeSize: 20
+    privateNetworking: false        # public subnets, public IPs (works without NAT)
+    availabilityZones: ["us-east-1a"]
+    labels: { role: worker }
+
+addons:
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true         # eksctl creates the IAM role automatically

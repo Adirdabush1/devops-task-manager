@@ -1,0 +1,21 @@
+# Local Jenkins (FREE). Build + run:
+#   cd jenkins && docker compose up -d --build
+# Then open http://localhost:8090  (initial admin password:)
+#   docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+services:
+  jenkins:
+    build:
+      context: .
+    image: jenkins-devops:lts
+    container_name: jenkins
+    user: root            # reliable access to the mounted Docker socket on Docker Desktop
+    restart: unless-stopped
+    ports:
+      - "8090:8080"     # web UI on host:8090 (8080 is taken by WordPress); ngrok points here
+      - "50000:50000"   # agents
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock   # build images using the host daemon
+
+volumes:
+  jenkins_home:

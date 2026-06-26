@@ -1,0 +1,33 @@
+# Single public entry point (the frontend). The backend has NO Ingress host of its own;
+# it is reached only via the /api path on this same host, which keeps "expose only the
+# frontend" true while letting the browser call ${BACKEND_URL}/api/tasks. One LoadBalancer
+# for everything = cheapest. nginx matches the longest prefix, so /api wins over /.
+#
+# No `host:` is set, so it matches any hostname (the minikube IP or the EKS LB DNS),
+# keeping the same manifest portable across both environments.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-manager
+  namespace: task-manager
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3001
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000

@@ -1,0 +1,21 @@
+# Non-sensitive configuration. URLs/hosts live here (not inline in Deployments).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: task-manager-config
+  namespace: task-manager
+data:
+  DB_HOST: "postgres"        # the headless Service name of the postgres StatefulSet
+  DB_PORT: "5432"
+  DB_NAME: "tasksdb"
+  DB_USER: "postgres"
+  # BACKEND_URL is the PUBLIC address the *browser* uses to reach the backend.
+  # The frontend serves it at GET /config; the browser then calls ${BACKEND_URL}/api/tasks.
+  # Because we route /api on the SAME Ingress host to the backend Service, set this to the
+  # Ingress entry point (NO trailing slash, NO path):
+  #   minikube : http://<minikube-ip>        (run: minikube ip)
+  #   EKS      : http://<ingress-nginx LoadBalancer DNS>
+  # Update it then restart the frontend, e.g.:
+  #   kubectl -n task-manager set env deploy/frontend BACKEND_URL=http://<addr> && \
+  #   kubectl -n task-manager rollout restart deploy/frontend
+  BACKEND_URL: "http://taskmanager.local"
